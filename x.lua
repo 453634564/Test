@@ -1,99 +1,187 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RS = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 
-local PlayerData =
-	require(
-		ReplicatedStorage
-		.Client
-		.Modules
-		.ClientGlobals
-	).PlayerData
+local player = Players.LocalPlayer
 
-local skins =
-	ReplicatedStorage:WaitForChild("Skins")
+local gui = Instance.new("ScreenGui")
+gui.Name="SkinVisualMenu"
+gui.Parent=player.PlayerGui
+gui.ResetOnSpawn=false
 
---------------------------------------------------
--- CONFIG
---------------------------------------------------
+--------------------------------
 
-local TYPE = "Knife"
--- "Knife"
--- "Gun"
+local selectedType="Knives"
+local selected=nil
 
-local AMOUNT = 25
--- cantidad visual por skin
+local function create(c,p)
+	local o=Instance.new(c)
+	o.Parent=p
+	return o
+end
 
---------------------------------------------------
+--------------------------------
 
-task.spawn(function()
+local frame=create("Frame",gui)
 
-	PlayerData:WaitForLoaded()
+frame.Size=UDim2.fromScale(.5,.7)
+frame.Position=UDim2.fromScale(.25,.15)
+frame.BackgroundColor3=Color3.fromRGB(25,25,25)
 
-	local inv =
-		PlayerData:TryIndex({
-			"Inventory",
-			TYPE
-		})
+create("UICorner",frame)
 
-	if not inv then
+local tabs=create("Frame",frame)
+
+tabs.Size=UDim2.new(1,0,0,45)
+
+local knife=create("TextButton",tabs)
+knife.Size=UDim2.new(.5,0,1,0)
+knife.Text="KNIVES"
+
+local gun=create("TextButton",tabs)
+gun.Position=UDim2.new(.5,0,0,0)
+gun.Size=UDim2.new(.5,0,1,0)
+gun.Text="GUNS"
+
+local search=create("TextBox",frame)
+
+search.Position=UDim2.new(.05,0,.12,0)
+search.Size=UDim2.new(.9,0,0,35)
+
+search.PlaceholderText="Buscar..."
+
+local list=create("ScrollingFrame",frame)
+
+list.Position=UDim2.new(.05,0,.22,0)
+list.Size=UDim2.new(.9,0,.45,0)
+
+local layout=create("UIListLayout",list)
+
+local amount=create("TextBox",frame)
+
+amount.Position=UDim2.new(.05,0,.72,0)
+amount.Size=UDim2.new(.3,0,0,40)
+
+amount.Text="1"
+
+local add=create("TextButton",frame)
+
+add.Position=UDim2.new(.4,0,.72,0)
+add.Size=UDim2.new(.55,0,0,40)
+
+add.Text="Agregar visual"
+
+local output=create("TextLabel",frame)
+
+output.Position=UDim2.new(.05,0,.82,0)
+output.Size=UDim2.new(.9,0,.13,0)
+
+output.TextWrapped=true
+output.TextScaled=true
+output.BackgroundColor3=Color3.fromRGB(40,40,40)
+
+--------------------------------
+
+local visual={}
+
+local function render()
+
+	for _,v in list:GetChildren() do
+		if v:IsA("TextButton") then
+			v:Destroy()
+		end
+	end
+
+	local folder=
+		RS.Skins[selectedType]
+
+	for _,obj in ipairs(
+		folder:GetChildren()
+	) do
+
+		if
+			search.Text==""
+			or
+			obj.Name:lower():find(
+				search.Text:lower(),
+				1,
+				true
+			)
+		then
+
+			local b=create(
+				"TextButton",
+				list
+			)
+
+			b.Size=
+			UDim2.new(
+				1,
+				-5,
+				0,
+				35
+			)
+
+			b.Text=obj.Name
+
+			b.MouseButton1Click:Connect(
+			function()
+
+				selected=obj.Name
+
+				output.Text=
+				"Seleccionado:\n"
+				..obj.Name
+
+			end)
+
+		end
+
+	end
+
+end
+
+knife.MouseButton1Click:Connect(function()
+
+	selectedType="Knives"
+
+	render()
+
+end)
+
+gun.MouseButton1Click:Connect(function()
+
+	selectedType="Guns"
+
+	render()
+
+end)
+
+search:GetPropertyChangedSignal(
+"Text"
+):Connect(render)
+
+add.MouseButton1Click:Connect(function()
+
+	if not selected then
 		return
 	end
 
-	local folder =
-		TYPE=="Knife"
-		and skins.Knives
-		or skins.Guns
-
-	local fake={}
-
-	for guid,item in pairs(inv) do
-		fake[guid]=item
-	end
-
-	for _,skin in ipairs(folder:GetChildren()) do
-
-		for i=1,AMOUNT do
-
-			local id=
-				"TEST_"..
-				skin.Name..
-				"_"..
-				i
-
-			fake[id]={
-				name=skin.Name
-			}
-
-		end
-
-	end
-
-	------------------------------------------------
-	-- SOBREESCRIBE SOLO CLIENTE
-	------------------------------------------------
-
-	local old =
-		PlayerData.TryIndex
-
-	PlayerData.TryIndex =
-		function(self,path)
-
-			if
-				path[1]=="Inventory"
-				and
-				path[2]==TYPE
-			then
-				return fake
-			end
-
-			return old(
-				self,
-				path
-			)
-
-		end
-
-	print(
-		"Visual inventory cargado"
+	local n=
+	tonumber(
+	amount.Text
 	)
+	or 1
+
+	visual[selected]=
+	(visual[selected] or 0)
+	+n
+
+	output.Text=
+	"VISUAL:\n"
+	..selected
+	.." × "
+	..visual[selected]
 
 end)
+
+render()
